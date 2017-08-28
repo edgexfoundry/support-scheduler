@@ -157,6 +157,7 @@
 			<properties>
 				<testcase.groups>org.edgexfoundry.test.category.RequiresSpring</testcase.groups>
 				<testcase.groups>org.edgexfoundry.test.category.RequiresWeb</testcase.groups>
+				<testcase.groups>org.edgexfoundry.test.category.RequiresMetaDataRunning</testcase.groups>
 			</properties>
 		</profile>
 	</profiles>
