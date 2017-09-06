@@ -31,12 +31,15 @@ import java.time.format.DateTimeFormatter;
 import org.edgexfoundry.domain.meta.Schedule;
 import org.edgexfoundry.domain.meta.ScheduleEvent;
 import org.edgexfoundry.scheduling.ScheduleContext;
+import org.edgexfoundry.test.category.RequiresNone;
 import org.edgexfoundry.test.data.ScheduleData;
 import org.edgexfoundry.test.data.ScheduleEventData;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(RequiresNone.class)
 public class ScheduleContextTest {
 
 	private boolean print = false;
