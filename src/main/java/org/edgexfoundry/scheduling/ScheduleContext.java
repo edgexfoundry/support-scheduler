@@ -1,22 +1,21 @@
 /*******************************************************************************
  * Copyright 2016-2017 Dell Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  *
- * @microservice:  support-scheduler
+ * @microservice: support-scheduler
  * @author: Marc Hammons, Dell
  * @version: 1.0.0
  *******************************************************************************/
+
 package org.edgexfoundry.scheduling;
 
 import java.time.Duration;
@@ -28,255 +27,275 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
-import org.apache.log4j.Logger;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.edgexfoundry.domain.meta.Schedule;
 import org.edgexfoundry.domain.meta.ScheduleEvent;
 
 public class ScheduleContext {
-	private final static Logger logger = Logger.getLogger(Scheduler.class);
-	
-	// Using for various things; run once, name, etc.
-	Schedule schedule;
 
-	// Duration for hhmmssSSS
-	private Duration duration;
-	
-	// Period for YYMMDD
-	private Period period;
-	
-	// start time
-	private ZonedDateTime startTime;
+  private static final org.edgexfoundry.support.logging.client.EdgeXLogger logger =
+      org.edgexfoundry.support.logging.client.EdgeXLoggerFactory
+          .getEdgeXLogger(ScheduleContext.class);
 
-	// end time
-	private ZonedDateTime endTime;
-	
-	// next time for this schedule to execute
-	private ZonedDateTime nextTime;
+  private static final String ERR_SCH_EVENT = "schedule event ";
 
-	// track execution iterations
-	private long iterations;
+  // Using for various things; run once, name, etc.
+  Schedule schedule;
 
-	// maximum times to execute, 0 is infinite
-	private long maxIterations;
-	
-	// events to execute - event id to event
-	private LinkedHashMap<String, ScheduleEvent> scheduleEvents;
+  // Duration for hhmmssSSS
+  private Duration duration;
 
-	public ScheduleContext(Schedule schedule) {
-		scheduleEvents = new LinkedHashMap<String, ScheduleEvent>();
-		reset(schedule);
-	}
-	
-	// Two schedules are equal if the have the same schedule id 
-	// used to find a schedule (and update/delete)
-	@Override
-	public boolean equals(Object o) {
-		if(o instanceof ScheduleContext) {
-			ScheduleContext sc = (ScheduleContext)o;
-			return schedule.getId() == sc.getId();
-		}
-		return false;
-	}
-	
-	public void reset(Schedule schedule) {
-		if(this.schedule != null) {
-			// clear any events if the schedule name has changed (but the ID hasn't)
-			if(this.schedule.getName() != schedule.getName()) {
-				scheduleEvents.clear();
-			}
-		}
-		this.schedule = schedule;
+  // Period for YYMMDD
+  private Period period;
 
-		String start = schedule.getStart();
-		String end = schedule.getEnd();
+  // start time
+  private ZonedDateTime startTime;
 
-		// update this if/when iterations are added to the schedule
-		this.maxIterations = (schedule.getRunOnce() == true) ? 1 : 0;
-		this.iterations = 0;
+  // end time
+  private ZonedDateTime endTime;
 
-		// if start is empty, then use now (need to think about ever-spawning tasks)
-		if(start == null || start.isEmpty() ) {
-			DateTimeFormatter formatter = DateTimeFormatter.ofPattern(Schedule.DATETIME_FORMATS[0]).withZone(ZoneId.systemDefault());
-			start  = formatter.format(Instant.now());
-		} 
-		this.startTime = parseTime(start);
+  // next time for this schedule to execute
+  private ZonedDateTime nextTime;
 
-		// if end is empty, then use max
-		if(end == null || end.isEmpty() ) {
-			DateTimeFormatter formatter = DateTimeFormatter.ofPattern(Schedule.DATETIME_FORMATS[0]).withZone(ZoneId.systemDefault());
-			end  = formatter.format(ZonedDateTime.of(LocalDateTime.MAX, ZoneId.systemDefault()));
-		} 
-		this.endTime = parseTime(end);
+  // track execution iterations
+  private long iterations;
 
-		// get the period and duration from the frequency string
-		parsePeriodAndDuration(schedule.getFrequency());
-		
-		// setup the next time the schedule will run
-		this.nextTime = initNextTime(startTime, ZonedDateTime.now(), period, duration);
-		
-		// clear any schedule events as required
-		
-		logger.debug("reset() " + this.toString());
-	}
-	
-	private ZonedDateTime parseTime(String time) {
-		DateTimeFormatter dtf = DateTimeFormatter.ofPattern(Schedule.DATETIME_FORMATS[0]).withZone(ZoneId.systemDefault());
-		ZonedDateTime zdt = null;
-		try {
-			zdt = ZonedDateTime.parse(time, dtf);
-		} catch (DateTimeParseException e) {
-			logger.debug("parseTime() failed to parse '" + time + "'");
-			// throw an exception
-			// mark as complete (via max iterations?)
-		}
-		return zdt;
-	}
+  // maximum times to execute, 0 is infinite
+  private long maxIterations;
 
-	private ZonedDateTime initNextTime(ZonedDateTime start, ZonedDateTime now, Period p, Duration d) {
-		// if the start time is in the future next will just be start
-		ZonedDateTime next = start;
-		// if the start time is in the past, increment until we find the next time to execute
-		// cannot call isComplete() here as it depends on nextTime
-		if(startTime.compareTo(now) <= 0 && !schedule.getRunOnce()) {
-			// TODO: optimize the below.  consider a one-second timer case...
-			// For example if only a single unit, e.g. only minutes, then can optimize relative to start 
-			// if there are more than one unit, then the loop may be best as it will be difficult
-			while(next.compareTo(now) <= 0) {
-				next = next.plus(p);
-				next = next.plus(d);
-			}
-		}
-		return next;
-	}
-	
-	private void parsePeriodAndDuration(String frequency) {
+  // events to execute - event id to event
+  private LinkedHashMap<String, ScheduleEvent> scheduleEvents;
 
-	    int periodStart = frequency.indexOf("P");
-	    int timeStart = frequency.indexOf("T");
-	    String s = frequency;
-	    
-		this.period = Period.ZERO;
-		this.duration = Duration.ZERO;
+  public ScheduleContext(Schedule schedule) {
+    scheduleEvents = new LinkedHashMap<>();
+    reset(schedule);
+  }
 
-		// Parse out the period (date)
-		try {
-			// If there is a duration 'T', remove it
-			if(timeStart != -1) s = frequency.substring(periodStart,timeStart);
-			this.period = Period.parse(s);
-		} catch (IndexOutOfBoundsException | DateTimeParseException e ) {
-			logger.debug("parsePeriodAndDuration() failed to parse period from '" + s + "'");
-		}
+  // Two schedules are equal if the have the same schedule id
+  // used to find a schedule (and update/delete)
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof ScheduleContext) {
+      ScheduleContext sc = (ScheduleContext) obj;
+      return this.schedule.getId() == sc.getId();
+    }
+    return false;
+  }
 
-		// Parse out the duration (time)
-		try {
-			// Make sure there is both a 'P' and 'T'
-			if(periodStart != -1 && timeStart != -1) {
-				s = frequency.substring(timeStart, frequency.length());
-				this.duration = Duration.parse("P"+s);
-			}
-		} catch (IndexOutOfBoundsException | DateTimeParseException e ) {
-			logger.debug("parsePeriodAndDuration() failed to parse duration from 'P" + s + "'");
-		}
-	}
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    final int primeMult = 53;
 
-	public boolean isComplete() {
-		return isComplete(ZonedDateTime.now());
-	}
+    return new HashCodeBuilder(prime, primeMult).append(startTime).append(endTime).toHashCode();
+  }
 
-	private boolean isComplete(ZonedDateTime now) {
-		// - start time is in the past and it's a run-once 
-		// - next time is greater than end time
-		// - maxIterations is defined and iterations >= maxIterations
-		boolean complete = ((startTime.compareTo(now) < 0 && schedule.getRunOnce()) ||
-				(nextTime.compareTo(endTime) > 0) ||
-				((maxIterations != 0) && (iterations >= maxIterations)));
-		return (complete);
-	}
+  public void reset(Schedule schedule) {
+    if ((this.schedule != null) && (this.schedule.getName() != schedule.getName())) {
+      scheduleEvents.clear();
+    }
+    this.schedule = schedule;
+    // update this if/when iterations are added to the schedule
+    this.maxIterations = (schedule.getRunOnce()) ? 1 : 0;
+    this.iterations = 0;
 
-	public String getName() {
-		return schedule.getName();
-	}
+    String start = schedule.getStart();
+    String end = schedule.getEnd();
+    // if start is empty, then use now (need to think about ever-spawning tasks)
+    if (start == null || start.isEmpty()) {
+      DateTimeFormatter formatter = DateTimeFormatter.ofPattern(Schedule.DATETIME_FORMATS[0])
+          .withZone(ZoneId.systemDefault());
+      start = formatter.format(Instant.now());
+    }
+    this.startTime = parseTime(start);
 
-	public String getId() {
-		return schedule.getId();
-	}
+    // if end is empty, then use max
+    if (end == null || end.isEmpty()) {
+      DateTimeFormatter formatter = DateTimeFormatter.ofPattern(Schedule.DATETIME_FORMATS[0])
+          .withZone(ZoneId.systemDefault());
+      end = formatter.format(ZonedDateTime.of(LocalDateTime.MAX, ZoneId.systemDefault()));
+    }
+    this.endTime = parseTime(end);
 
-	public String getInfo() {
-		return schedule.getId() + " '" + schedule.getName() + "'";
-	}
+    // get the period and duration from the frequency string
+    parsePeriodAndDuration(schedule.getFrequency());
 
-	public ZonedDateTime getStartTime() {
-		return startTime;
-	}
+    // setup the next time the schedule will run
+    this.nextTime = initNextTime(startTime, ZonedDateTime.now(), period, duration);
 
-	public ZonedDateTime getEndTime() {
-		return endTime;
-	}
+    // clear any schedule events as required
 
-	public ZonedDateTime getNextTime() {
-		return nextTime;
-	}
+    logger.debug("reset() " + this.toString());
+  }
 
-	public long getMaxIterations() {
-		return maxIterations;
-	}
+  private ZonedDateTime parseTime(String time) {
+    DateTimeFormatter dtf =
+        DateTimeFormatter.ofPattern(Schedule.DATETIME_FORMATS[0]).withZone(ZoneId.systemDefault());
+    ZonedDateTime zdt = null;
+    try {
+      zdt = ZonedDateTime.parse(time, dtf);
+    } catch (DateTimeParseException e) {
+      logger.error("parseTime() failed to parse '" + time + "'");
+    }
+    return zdt;
+  }
 
-	public void updateNextTime() {
-		if(!isComplete()) {
-			nextTime = nextTime.plus(period);
-			nextTime = nextTime.plus(duration);
-		}
-	}
+  private ZonedDateTime initNextTime(ZonedDateTime start, ZonedDateTime now, Period period, Duration duration) {
+    // if the start time is in the future next will just be start
+    ZonedDateTime next = start;
+    // if the start time is in the past, increment until we find the next time to execute
+    // cannot call isComplete() here as it depends on nextTime
+    if (startTime.compareTo(now) <= 0 && !schedule.getRunOnce()) {
+      // TODO: optimize the below. consider a one-second timer case...
+      // For example if only a single unit, e.g. only minutes, then can optimize relative to start
+      // if there are more than one unit, then the loop may be best as it will be difficult
+      while (next.compareTo(now) <= 0) {
+        next = next.plus(period);
+        next = next.plus(duration);
+      }
+    }
+    return next;
+  }
 
-	public long getIterations() {
-		return iterations;
-	}
-	
-	public LinkedHashMap<String, ScheduleEvent> getScheduleEvents() {
-		return scheduleEvents;
-	}
+  private void parsePeriodAndDuration(String frequency) {
 
-	public void updateIterations() {
-		if(!isComplete()) iterations = iterations + 1;
-	}
+    int periodStart = frequency.indexOf('P');
+    int timeStart = frequency.indexOf('T');
+    String freq = frequency;
 
-	@Override
-	public String toString() {
-		return "ScheduleContext [id =" + getId() + " name=" + getName() + ", start=" + startTime.toString() + ", end=" + endTime.toString() + 
-				", next=" + nextTime.toString() + ", complete=" + isComplete() + "]";
-	}
+    this.period = Period.ZERO;
+    this.duration = Duration.ZERO;
 
-	public boolean addScheduleEvent(ScheduleEvent scheduleEvent) {
-		logger.info("adding schedule event " + scheduleEvent.getId() + " '" + scheduleEvent.getName() + "' to schedule " + getInfo());
-		if(scheduleEvents.containsKey(scheduleEvent.getId())) {
-			logger.error("schedule event " + scheduleEvent.getId() + " " + scheduleEvent.getName() + " exists.");
-			return false;
-		} 
-		scheduleEvents.put(scheduleEvent.getId(), scheduleEvent);
-		logger.info("added schedule event " + scheduleEvent.getId() + " '" + scheduleEvent.getName() + "' to schedule " + getInfo());
-		return true;
-	}
+    // Parse out the period (date)
+    try {
+      // If there is a duration 'T', remove it
+      if (timeStart != -1)
+        freq = frequency.substring(periodStart, timeStart);
+      this.period = Period.parse(freq);
+    } catch (IndexOutOfBoundsException | DateTimeParseException e) {
+      logger.error("parsePeriodAndDuration() failed to parse period from '" + freq + "'");
+    }
 
-	public boolean updateScheduleEvent(ScheduleEvent scheduleEvent) {
-		logger.info("updating schedule event " + scheduleEvent.getId() + " '" + scheduleEvent.getName() + "' of schedule " + getInfo());
-		if(!scheduleEvents.containsKey(scheduleEvent.getId())) {
-			logger.error("schedule event " + scheduleEvent.getId() + " '" + scheduleEvent.getName() + " not found");
-			return false;
-		} 
-		scheduleEvents.put(scheduleEvent.getId(), scheduleEvent);
-		logger.info("updated schedule event " + scheduleEvent.getId() + " '" + scheduleEvent.getName() + "' of schedule " + getInfo());
-		return true;
-	}
+    // Parse out the duration (time)
+    try {
+      // Make sure there is both a 'P' and 'T'
+      if (periodStart != -1 && timeStart != -1) {
+        freq = frequency.substring(timeStart, frequency.length());
+        this.duration = Duration.parse("P" + freq);
+      }
+    } catch (IndexOutOfBoundsException | DateTimeParseException e) {
+      logger.error("parsePeriodAndDuration() failed to parse duration from 'P" + freq + "'");
+    }
+  }
 
-	public boolean removeScheduleEventById(String id) {
-		logger.info("removing schedule event " + id);
-		if(!scheduleEvents.containsKey(id)) {
-			logger.error("schedule event " + id + " not found");
-			return false;
-		} 
-		scheduleEvents.remove(id);
-		logger.info("removed schedule event " + id);
-		return true;
-	}
+  public boolean isComplete() {
+    return isComplete(ZonedDateTime.now());
+  }
+
+  private boolean isComplete(ZonedDateTime now) {
+    // - start time is in the past and it's a run-once
+    // - next time is greater than end time
+    // - maxIterations is defined and iterations >= maxIterations
+    boolean complete = ((startTime.compareTo(now) < 0 && schedule.getRunOnce())
+        || (nextTime.compareTo(endTime) > 0)
+        || ((maxIterations != 0) && (iterations >= maxIterations)));
+    return (complete);
+  }
+
+  public String getName() {
+    return schedule.getName();
+  }
+
+  public String getId() {
+    return schedule.getId();
+  }
+
+  public String getInfo() {
+    return schedule.getId() + " '" + schedule.getName() + "'";
+  }
+
+  public ZonedDateTime getStartTime() {
+    return startTime;
+  }
+
+  public ZonedDateTime getEndTime() {
+    return endTime;
+  }
+
+  public ZonedDateTime getNextTime() {
+    return nextTime;
+  }
+
+  public long getMaxIterations() {
+    return maxIterations;
+  }
+
+  public void updateNextTime() {
+    if (!isComplete()) {
+      nextTime = nextTime.plus(period);
+      nextTime = nextTime.plus(duration);
+    }
+  }
+
+  public long getIterations() {
+    return iterations;
+  }
+
+  public Map<String, ScheduleEvent> getScheduleEvents() {
+    return scheduleEvents;
+  }
+
+  public void updateIterations() {
+    if (!isComplete())
+      iterations = iterations + 1;
+  }
+
+  @Override
+  public String toString() {
+    return "ScheduleContext [id =" + getId() + " name=" + getName() + ", start="
+        + startTime.toString() + ", end=" + endTime.toString() + ", next=" + nextTime.toString()
+        + ", complete=" + isComplete() + "]";
+  }
+
+  public boolean addScheduleEvent(ScheduleEvent scheduleEvent) {
+    logger.info("adding schedule event " + scheduleEvent.getId() + " '" + scheduleEvent.getName()
+        + "' to schedule " + getInfo());
+    if (scheduleEvents.containsKey(scheduleEvent.getId())) {
+      logger.error(
+          ERR_SCH_EVENT + scheduleEvent.getId() + " " + scheduleEvent.getName() + " exists.");
+      return false;
+    }
+    scheduleEvents.put(scheduleEvent.getId(), scheduleEvent);
+    logger.info("added schedule event " + scheduleEvent.getId() + " '" + scheduleEvent.getName()
+        + "' to schedule " + getInfo());
+    return true;
+  }
+
+  public boolean updateScheduleEvent(ScheduleEvent scheduleEvent) {
+    logger.info("updating schedule event " + scheduleEvent.getId() + " '" + scheduleEvent.getName()
+        + "' of schedule " + getInfo());
+    if (!scheduleEvents.containsKey(scheduleEvent.getId())) {
+      logger.error(
+          ERR_SCH_EVENT + scheduleEvent.getId() + " '" + scheduleEvent.getName() + " not found");
+      return false;
+    }
+    scheduleEvents.put(scheduleEvent.getId(), scheduleEvent);
+    logger.info("updated schedule event " + scheduleEvent.getId() + " '" + scheduleEvent.getName()
+        + "' of schedule " + getInfo());
+    return true;
+  }
+
+  public boolean removeScheduleEventById(String id) {
+    logger.info("removing schedule event " + id);
+    if (!scheduleEvents.containsKey(id)) {
+      logger.error(ERR_SCH_EVENT + id + " not found");
+      return false;
+    }
+    scheduleEvents.remove(id);
+    logger.info("removed schedule event " + id);
+    return true;
+  }
+
 }

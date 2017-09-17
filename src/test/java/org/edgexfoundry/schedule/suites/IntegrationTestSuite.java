@@ -11,22 +11,28 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  *
- * @microservice: support-scheduler
+ * @microservice: support-notifications
  * @author: Jim White, Dell
  * @version: 1.0.0
  *******************************************************************************/
 
-package org.edgexfoundry.controller;
+package org.edgexfoundry.schedule.suites;
 
-import org.edgexfoundry.domain.meta.CallbackAlert;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.edgexfoundry.scheduling.integration.SchedulerTest;
+import org.junit.Ignore;
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
 
-public interface CallbackController {
-
-  String handlePut(@RequestBody CallbackAlert alert);
-
-  String handlePost(@RequestBody CallbackAlert alert);
-
-  String handleDelete(@RequestBody CallbackAlert alert);
+/**
+ * Used in development only. Remove @Ignore to run just the integration tests (not unit tests).
+ * These tests do require any other resources to run.
+ * 
+ * @author Jim White
+ *
+ */
+@Ignore
+@RunWith(Suite.class)
+@Suite.SuiteClasses({SchedulerTest.class})
+public class IntegrationTestSuite {
 
 }

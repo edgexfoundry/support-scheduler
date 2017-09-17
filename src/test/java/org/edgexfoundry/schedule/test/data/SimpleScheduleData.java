@@ -16,17 +16,28 @@
  * @version: 1.0.0
  *******************************************************************************/
 
-package org.edgexfoundry.controller;
+package org.edgexfoundry.schedule.test.data;
 
-import org.edgexfoundry.domain.meta.CallbackAlert;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.edgexfoundry.schedule.domain.SimpleSchedule;
 
-public interface CallbackController {
+public interface SimpleScheduleData {
 
-  String handlePut(@RequestBody CallbackAlert alert);
+  static final String TEST_NAME = "midnight";
+  static final String TEST_START = "20170101T000000";
+  static final String TEST_END = "20171212T000000";
+  static final String TEST_CRON = "0 0 12 * * ?";
+  static final String TEST_FREQ = "P1D";
+  static final String TEST_RUN_ONCE = "true";
 
-  String handlePost(@RequestBody CallbackAlert alert);
-
-  String handleDelete(@RequestBody CallbackAlert alert);
+  static SimpleSchedule newTestInstance() {
+    SimpleSchedule schedule = new SimpleSchedule();
+    schedule.setName(TEST_NAME);
+    schedule.setCron(TEST_CRON);
+    schedule.setStart(TEST_START);
+    schedule.setEnd(TEST_END);
+    schedule.setFrequency(TEST_FREQ);
+    schedule.setRunOnce(TEST_RUN_ONCE);
+    return schedule;
+  }
 
 }
