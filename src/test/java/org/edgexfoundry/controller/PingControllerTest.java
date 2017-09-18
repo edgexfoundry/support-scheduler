@@ -18,15 +18,29 @@
 
 package org.edgexfoundry.controller;
 
-import org.edgexfoundry.domain.meta.CallbackAlert;
-import org.springframework.web.bind.annotation.RequestBody;
+import static org.junit.Assert.assertEquals;
 
-public interface CallbackController {
+import org.edgexfoundry.controller.impl.PingControllerImpl;
+import org.edgexfoundry.test.category.RequiresNone;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
-  String handlePut(@RequestBody CallbackAlert alert);
+@Category(RequiresNone.class)
+public class PingControllerTest {
 
-  String handlePost(@RequestBody CallbackAlert alert);
+  private static final String PING_RESP = "pong";
 
-  String handleDelete(@RequestBody CallbackAlert alert);
+  private PingController controller;
+
+  @Before
+  public void setup() {
+    controller = new PingControllerImpl();
+  }
+
+  @Test
+  public void testPing() {
+    assertEquals("Ping controller ping test responded incorrectly", PING_RESP, controller.ping());
+  }
 
 }
