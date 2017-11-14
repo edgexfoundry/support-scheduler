@@ -12,16 +12,16 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.edgexfoundry</groupId>
 	<artifactId>support-scheduler</artifactId>
-	<version>0.2.0-SNAPSHOT</version>
+	<version>0.2.1-SNAPSHOT</version>
 	<name>EdgeX Foundry Support Scheduler Micro Service</name>
 	<description>EdgeX Foundry Support Scheduler Micro Service</description>
 
 	<properties>
-		<core-domain.version>0.2.0-SNAPSHOT</core-domain.version>
-		<core-exception.version>0.2.0-SNAPSHOT</core-exception.version>
-		<core-test.version>0.2.0-SNAPSHOT</core-test.version>
-		<core-metadata-client.version>0.2.0-SNAPSHOT</core-metadata-client.version>
-		<support-logging-client.version>0.2.0-SNAPSHOT</support-logging-client.version>
+		<core-domain.version>0.2.1-SNAPSHOT</core-domain.version>
+		<core-exception.version>0.2.1-SNAPSHOT</core-exception.version>
+		<core-test.version>0.2.1-SNAPSHOT</core-test.version>
+		<core-metadata-client.version>0.2.1-SNAPSHOT</core-metadata-client.version>
+		<support-logging-client.version>0.2.1-SNAPSHOT</support-logging-client.version>
 		<quartz.version>2.2.3</quartz.version>
 		<springmvc.raml.version>0.8.1</springmvc.raml.version>
 		<spring.cloud.version>Brixton.SR5</spring.cloud.version>
